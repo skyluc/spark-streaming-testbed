@@ -71,13 +71,16 @@ object SimpleStreamingApp {
    *
    */
   private def stats(value: Iterable[Long]): Stats = {
-    val (count, sum, sqrsum) = value.foldLeft((0, 0L, 0L)) { (acc, v) =>
-      // acc: count, sum, sum of squared
-      (acc._1 + 1, acc._2 + v, acc._3 + v * v)
+    if (value.isEmpty) (0, 0L, 0D, 0D, System.currentTImeMillis())
+    else {
+      // rounding error-free computation of variance
+      // see http://bit.ly/1CfmaiE
+      val (count, sum, mean, S) = value.tail.foldLeft(0, 0L, value.head.toDouble, 0D) {(acc,v) =>
+        val nextMean = acc._3 + (v – acc._3)/k
+        (acc._1 + 1, acc._2 + v, nextMean, acc._4 + (v – acc._3) * (v – nextMean))
+      }
+      Stats(count, sum, mean, math.sqrt(S / (count - 1)), System.currentTimeMillis())
     }
-    val mean = sum.toDouble / count
-    val stddev = math.sqrt(count * sqrsum - sum * sum) / count
-    Stats(count, sum, mean, stddev, System.currentTimeMillis())
   }
 
   private def usageAndExit(message: String): Nothing = {
